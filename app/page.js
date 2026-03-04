@@ -273,6 +273,8 @@ function Dashboard(){
   const [autoMsg,setAutoMsg]=useState("");
 
   useEffect(()=>{
+    if(!isBrowser) return;
+
     const lastCheck = localStorage.getItem("lastCalendarCheck") || today;
     const gap = daysBetween(lastCheck, today);
 
@@ -326,6 +328,8 @@ function Dashboard(){
 
   // --- Streak break penalty: -200 power when streak breaks (once per break) ---
   useEffect(()=>{
+    if(!isBrowser) return;
+
     const last=localStorage.getItem("lastStudyDay") || "";
     if(!last) return;
     const gap = daysBetween(last, today);
@@ -575,6 +579,7 @@ function Pomodoro(){
 
  useEffect(()=>{
    if(!running) return;
+   if(!isBrowser) return;
    const timer=setInterval(()=>{
      setTime(t=>{
        if(t<=1){
