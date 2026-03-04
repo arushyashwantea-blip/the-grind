@@ -254,10 +254,19 @@ function Dashboard(){
   const REQUIRED_MINS = 125;
   const ELITE_MINS = 250;
   const today = dayKey();
-  const sessionsToday = parseInt(localStorage.getItem(keySessions(today)) || "0", 10);
-  const minsToday = parseInt(localStorage.getItem(keyMins(today)) || "0", 10);
+  const isBrowser = typeof window !== "undefined";
 
-  const lastDone = localStorage.getItem("lastStudyDay") || ""; // YYYY-MM-DD
+  const sessionsToday = useMemo(() => {
+    if(!isBrowser) return 0;
+    return parseInt(localStorage.getItem(keySessions(today)) || "0", 10);
+  }, [today, isBrowser]);
+
+  const minsToday = useMemo(() => {
+    if(!isBrowser) return 0;
+    return parseInt(localStorage.getItem(keyMins(today)) || "0", 10);
+  }, [today, isBrowser]);
+
+  const lastDone = isBrowser ? (localStorage.getItem("lastStudyDay") || "") : ""; // YYYY-MM-DD
   const doneToday = lastDone === today;
 
   // --- Auto-close days you forgot to claim ---
@@ -377,9 +386,18 @@ function Dashboard(){
   }
 
   // --- Next exam system ---
-  const [examDate,setExamDate]=useState(()=>localStorage.getItem("nextExamDate")||"");
-  const [examSaved,setExamSaved]=useState(()=>!!localStorage.getItem("nextExamDate"));
-  const [goalMarks,setGoalMarks]=useState(()=>localStorage.getItem("goalMarks")||"");
+  const [examDate,setExamDate]=useState(()=>{
+    if(typeof window !== "undefined") return localStorage.getItem("nextExamDate")||"";
+    return "";
+  });
+  const [examSaved,setExamSaved]=useState(()=>{
+    if(typeof window !== "undefined") return !!localStorage.getItem("nextExamDate");
+    return false;
+  });
+  const [goalMarks,setGoalMarks]=useState(()=>{
+    if(typeof window !== "undefined") return localStorage.getItem("goalMarks")||"";
+    return "";
+  });
 
   function saveExam(){
     if(!examDate){
@@ -540,8 +558,9 @@ function Tasks({tasks,setTasks}){
 }
 
 function Pomodoro(){
+ const isBrowser = typeof window !== "undefined";
  const [minutesPerSession,setMinutesPerSession]=useState(()=>{
-   const saved = localStorage.getItem("pomoMinutes");
+   const saved = isBrowser ? localStorage.getItem("pomoMinutes") : null;
    return saved ? Math.max(5, parseInt(saved,10) || 25) : 25;
  });
  const [time,setTime]=useState(()=>minutesPerSession*60);
@@ -585,8 +604,8 @@ function Pomodoro(){
  const seconds=time%60;
  const finalForm=sessions>=3;
  const d = dayKey();
- const focusMinsToday = parseInt(localStorage.getItem(keyMins(d)) || "0", 10);
- const focusSessionsToday = parseInt(localStorage.getItem(keySessions(d)) || "0", 10);
+ const focusMinsToday = isBrowser ? parseInt(localStorage.getItem(keyMins(d)) || "0", 10) : 0;
+ const focusSessionsToday = isBrowser ? parseInt(localStorage.getItem(keySessions(d)) || "0", 10) : 0;
 
  function applyPreset(m){
    setRunning(false);
@@ -727,6 +746,7 @@ function CalendarView(){
   const [selected,setSelected]=useState(()=>dayKey());
 
   const today = dayKey();
+  const isBrowser = typeof window !== "undefined"; // guard for SSR
 
   // build month grid
   const grid = useMemo(()=>{
@@ -746,9 +766,9 @@ function CalendarView(){
     return cells;
   },[ym]);
 
-  const selMins = parseInt(localStorage.getItem(keyMins(selected)) || "0", 10);
-  const selSessions = parseInt(localStorage.getItem(keySessions(selected)) || "0", 10);
-  const selStatus = localStorage.getItem(keyStatus(selected)) || "";
+  const selMins = isBrowser ? parseInt(localStorage.getItem(keyMins(selected)) || "0", 10) : 0;
+  const selSessions = isBrowser ? parseInt(localStorage.getItem(keySessions(selected)) || "0", 10) : 0;
+  const selStatus = isBrowser ? (localStorage.getItem(keyStatus(selected)) || "") : "";
 
   // monthly totals (for current calendar month)
   const monthTotals = useMemo(()=>{
@@ -760,11 +780,13 @@ function CalendarView(){
 
     for(let day=1; day<=dim; day++){
       const dateStr = dayKey(new Date(start.getFullYear(), start.getMonth(), day));
+      if(isBrowser){
       totalMins += parseInt(localStorage.getItem(keyMins(dateStr)) || "0", 10);
       totalSessions += parseInt(localStorage.getItem(keySessions(dateStr)) || "0", 10);
       DURATIONS.forEach(dur=>{
         byDur[dur] += parseInt(localStorage.getItem(keyDur(dateStr, dur)) || "0", 10);
       });
+    }
     }
 
     return { totalMins, totalSessions, byDur };
@@ -784,8 +806,8 @@ function CalendarView(){
 
   function statusBadge(dateStr){
     if(!dateStr) return "";
-    const status = localStorage.getItem(keyStatus(dateStr)) || "";
-    const mins = parseInt(localStorage.getItem(keyMins(dateStr)) || "0", 10);
+    const status = isBrowser ? (localStorage.getItem(keyStatus(dateStr)) || "") : "";
+    const mins = isBrowser ? parseInt(localStorage.getItem(keyMins(dateStr)) || "0", 10) : 0;
 
     // Future days
     if(dateStr > today) return "bg-gray-900 border-gray-800 text-gray-500";
@@ -833,7 +855,8 @@ function CalendarView(){
               if(!dateStr) return <div key={idx} className="h-10" />;
               const isSel = dateStr === selected;
               const cls = statusBadge(dateStr);
-              const mins = parseInt(localStorage.getItem(keyMins(dateStr)) || "0", 10);
+              // guard access during SSR
+              const mins = isBrowser ? parseInt(localStorage.getItem(keyMins(dateStr)) || "0", 10) : 0;
               return (
                 <button
                   key={dateStr}
